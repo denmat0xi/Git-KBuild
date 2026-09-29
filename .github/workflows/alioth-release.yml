@@ -33,6 +33,7 @@ on:
           - r547379
           - r574158
           - r614150
+          - arrow
         default: neutron
       VARIANT:
         description: '-W is only for rename'
@@ -78,11 +79,6 @@ on:
         required: false
         type: boolean
         default: false
-      ENABLE_MQ_DEADLINE:
-        description: '[Extra] Enable mq-deadline I/O scheduler (and set as default)'
-        required: false
-        type: boolean
-        default: true
 
 jobs:
   build:
@@ -111,6 +107,13 @@ jobs:
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/c66f8b376703f420d791cf01547d076649651aa8/clang-r614150.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "arrow" ]]; then
+            wget https://github.com/ArrowOS-Devices/proton-clang/archive/refs/heads/master.zip -O arrow-clang.zip
+            mkdir clang_temp
+            unzip arrow-clang.zip -d clang_temp
+            mkdir clang
+            mv clang_temp/proton-clang-master/* clang/ 2>/dev/null || mv clang_temp/*/* clang/
+            rm -rf clang_temp arrow-clang.zip
           else
             wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
             mkdir clang
@@ -204,14 +207,10 @@ jobs:
         run: |
           cd kernel_tree
           DEFCONFIG="arch/arm64/configs/vendor/alioth_defconfig"
-          
           chmod +x ./scripts/config
-
-          # Function to toggle configs and echo the status
           toggle_config() {
             local feature=$1
             local state=$2
-            
             if [[ "$state" == 'true' ]]; then
               echo "  [+] Enabling $feature"
               ./scripts/config --file $DEFCONFIG --enable "$feature"
@@ -220,22 +219,11 @@ jobs:
               ./scripts/config --file $DEFCONFIG --disable "$feature"
             fi
           }
-
           echo "==== Applying Extra Features ===="
           toggle_config "CONFIG_NTSYNC" "${{ github.event.inputs.ENABLE_NTSYNC }}"
           toggle_config "CONFIG_NOMOUNT" "${{ github.event.inputs.ENABLE_NOMOUNT }}"
           toggle_config "CONFIG_RW_SWAPPINESS" "${{ github.event.inputs.ENABLE_RW_SWAPPINESS }}"
           toggle_config "CONFIG_BYPASS_CHARGING" "${{ github.event.inputs.ENABLE_BYPASS_CHARGING }}"
-          
-          # Включаем mq-deadline
-          toggle_config "CONFIG_MQ_IOSCHED_DEADLINE" "${{ github.event.inputs.ENABLE_MQ_DEADLINE }}"
-          
-          # Если включили, делаем его планировщиком по умолчанию
-          if [[ "${{ github.event.inputs.ENABLE_MQ_DEADLINE }}" == 'true' ]]; then
-            echo "  [*] Setting mq-deadline as default I/O scheduler"
-            sed -i -e 's/CONFIG_DEFAULT_IOSCHED=".*"/CONFIG_DEFAULT_IOSCHED="mq-deadline"/' $DEFCONFIG
-          fi
-          
           echo "================================="
 
       - name: Apply Modifications (if modified build)
@@ -255,7 +243,7 @@ jobs:
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="renoroi"
+          export KBUILD_BUILD_USER="denmat0xi"
           export KBUILD_BUILD_HOST="dreamstate"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
@@ -393,4 +381,3 @@ jobs:
             AnyKernel3-${{ matrix.kernel }}/
             !AnyKernel3-${{ matrix.kernel }}/.git
             !AnyKernel3-${{ matrix.kernel }}/.github
-      
