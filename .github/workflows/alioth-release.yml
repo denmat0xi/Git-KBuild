@@ -104,21 +104,21 @@ jobs:
           if [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
             echo "Downloading Google Clang r547379..."
             CLANG_VER="r547379"
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r547379.tar.gz -O clang.tar.gz || \
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz || \
             wget https://github.com/userariii/AOSP-clang/releases/download/clang-r547379/clang-r547379.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r574158" ]]; then
             echo "Downloading Google Clang r574158..."
             CLANG_VER="r574158"
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r574158.tar.gz -O clang.tar.gz || \
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz || \
             wget https://github.com/userariii/AOSP-clang/releases/download/clang-r574158/clang-r574158.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r614150" ]]; then
             echo "Downloading Google Clang r614150..."
             CLANG_VER="r614150"
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r614150.tar.gz -O clang.tar.gz || \
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/c66f8b376703f420d791cf01547d076649651aa8/clang-r614150.tar.gz -O clang.tar.gz || \
             wget https://github.com/userariii/AOSP-clang/releases/download/clang-r614150/clang-r614150.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
