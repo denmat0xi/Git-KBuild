@@ -30,10 +30,12 @@ on:
         type: choice
         options:
           - neutron
+          - proton
+          - zyclang
+          - google-mirror
           - r547379
           - r574158
           - r614150
-          - arrow
         default: neutron
       VARIANT:
         description: '-W is only for rename'
@@ -95,31 +97,53 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
+          echo "Downloading selected compiler..."
+          mkdir clang
+          
+          if [[ "${{ github.event.inputs.COMPILER }}" == "proton" ]]; then
+            echo "Downloading Proton Clang..."
+            wget https://github.com/kdrag0n/proton-clang/releases/download/20240115/proton-clang-20240115.tar.xz -O clang.tar.xz
+            tar -xf clang.tar.xz -C clang
+            
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "zyclang" ]]; then
+            echo "Downloading ZyClang..."
+            wget https://github.com/ZyCromerZ/Clang/releases/download/19.0.0/ZyClang-19.0.0.tar.xz -O clang.tar.xz
+            tar -xf clang.tar.xz -C clang
+            
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "google-mirror" ]]; then
+            echo "Downloading Google Clang r547379 from reliable GitHub mirror (avoids 503)..."
+            wget https://github.com/userariii/AOSP-clang/releases/download/clang-r547379/clang-r547379.tar.gz -O clang.tar.gz
+            tar -xf clang.tar.gz -C clang
+            
+          elif [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
+            echo "Downloading Google Clang r547379 (Official)..."
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-            mkdir clang
             tar -xf clang.tar.gz -C clang
+            
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r574158" ]]; then
+            echo "Downloading Google Clang r574158 (Official)..."
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
-            mkdir clang
             tar -xf clang.tar.gz -C clang
+            
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r614150" ]]; then
+            echo "Downloading Google Clang r614150 (Official)..."
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/c66f8b376703f420d791cf01547d076649651aa8/clang-r614150.tar.gz -O clang.tar.gz
-            mkdir clang
             tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "arrow" ]]; then
-            wget https://github.com/ArrowOS-Devices/proton-clang/archive/refs/heads/master.zip -O arrow-clang.zip
-            mkdir clang_temp
-            unzip arrow-clang.zip -d clang_temp
-            mkdir clang
-            mv clang_temp/proton-clang-master/* clang/ 2>/dev/null || mv clang_temp/*/* clang/
-            rm -rf clang_temp arrow-clang.zip
+            
           else
+            echo "Downloading Neutron Clang (Default)..."
             wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
-            mkdir clang
             unzstd -d clang.tar.zst
             tar -xf clang.tar -C clang
           fi
+          
+          # Verify extraction
+          if [ ! -f "clang/bin/clang" ]; then
+            echo "Error: Clang binary not found after extraction!"
+            ls -la clang/ || true
+            exit 1
+          fi
+          echo "Compiler extracted successfully!"
           
       - name: Set Kernel Environment Variables
         run: |
