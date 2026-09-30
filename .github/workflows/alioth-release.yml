@@ -30,7 +30,6 @@ on:
         type: choice
         options:
           - neutron
-          - google-mirror
           - r547379
           - r574158
           - r614150
@@ -88,46 +87,44 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UPLOAD_TO_RELEASE: false
+    outputs:
+      clang_version: ${{ steps.detect_clang.outputs.clang_version }}
 
     steps:
       - name: Install Dependencies
         run: sudo apt install flex libncurses6
 
       - name: Download & Extract Clang
+        id: detect_clang
         run: |
           echo "Downloading selected compiler..."
           mkdir clang
+          CLANG_VER="unknown"
           
-          if [[ "${{ github.event.inputs.COMPILER }}" == "google-mirror" ]]; then
-            echo "Fetching latest Google Clang version from GitHub mirror..."
-            # Получаем последний релиз через GitHub API
-            LATEST_TAG=$(curl -s https://api.github.com/repos/userariii/AOSP-clang/releases/latest | grep -oP '"tag_name": "\K[^"]+')
-            echo "Latest version: $LATEST_TAG"
-            echo "$LATEST_TAG" > clang_version.txt
-            wget "https://github.com/userariii/AOSP-clang/releases/download/${LATEST_TAG}/${LATEST_TAG}.tar.gz" -O clang.tar.gz
-            tar -xf clang.tar.gz -C clang
-            
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
-            echo "Downloading Google Clang r547379 (Official)..."
-            echo "r547379" > clang_version.txt
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r547379.tar.gz -O clang.tar.gz
+          if [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
+            echo "Downloading Google Clang r547379..."
+            CLANG_VER="r547379"
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r547379.tar.gz -O clang.tar.gz || \
+            wget https://github.com/userariii/AOSP-clang/releases/download/clang-r547379/clang-r547379.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r574158" ]]; then
-            echo "Downloading Google Clang r574158 (Official)..."
-            echo "r574158" > clang_version.txt
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r574158.tar.gz -O clang.tar.gz
+            echo "Downloading Google Clang r574158..."
+            CLANG_VER="r574158"
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r574158.tar.gz -O clang.tar.gz || \
+            wget https://github.com/userariii/AOSP-clang/releases/download/clang-r574158/clang-r574158.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
           elif [[ "${{ github.event.inputs.COMPILER }}" == "r614150" ]]; then
-            echo "Downloading Google Clang r614150 (Official)..."
-            echo "r614150" > clang_version.txt
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r614150.tar.gz -O clang.tar.gz
+            echo "Downloading Google Clang r614150..."
+            CLANG_VER="r614150"
+            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/clang-r614150.tar.gz -O clang.tar.gz || \
+            wget https://github.com/userariii/AOSP-clang/releases/download/clang-r614150/clang-r614150.tar.gz -O clang.tar.gz
             tar -xf clang.tar.gz -C clang
             
           else
             echo "Downloading Neutron Clang (Default)..."
-            echo "neutron-06092026" > clang_version.txt
+            CLANG_VER="neutron-06092026"
             wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
             unzstd -d clang.tar.zst
             tar -xf clang.tar -C clang
@@ -139,13 +136,10 @@ jobs:
             ls -la clang/ || true
             exit 1
           fi
-          echo "Compiler extracted successfully!"
           
-      - name: Save Clang Version
-        run: |
-          CLANG_VERSION=$(cat clang_version.txt)
-          echo "CLANG_VERSION=$CLANG_VERSION" >> $GITHUB_ENV
-          echo "Using compiler version: $CLANG_VERSION"
+          echo "clang_version=$CLANG_VER" >> $GITHUB_OUTPUT
+          echo "Compiler version: $CLANG_VER"
+          echo "Compiler extracted successfully!"
 
       - name: Set Kernel Environment Variables
         run: |
@@ -171,8 +165,7 @@ jobs:
           elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA="-oplus"
           fi
-          # Добавляем версию компилятора в LOCALVERSION
-          CLANG_VERSION=$(cat ../clang_version.txt)
+          CLANG_VERSION="${{ steps.detect_clang.outputs.clang_version }}"
           sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ github.event.inputs.CUSTOM_SED }}-${CLANG_VERSION}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Remove cycle count
@@ -395,10 +388,9 @@ jobs:
           elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA2="-OPLUS"
           fi
-          # Получаем версию компилятора из артефакта или используем дефолт
-          CLANG_VERSION="${{ env.CLANG_VERSION }}"
-          if [[ -z "$CLANG_VERSION" ]]; then
-            CLANG_VERSION="unknown"
+          CLANG_VERSION="${{ needs.build.outputs.clang_version }}"
+          if [[ -z "$CLANG_VERSION" || "$CLANG_VERSION" == "unknown" ]]; then
+            CLANG_VERSION="unknown-compiler"
           fi
           if [[ "${{ matrix.kernel }}" == "1" ]]; then
             echo "ZIP_NAME=[FD-][ksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}-${CLANG_VERSION}${EXTRA2}]" >> $GITHUB_ENV
